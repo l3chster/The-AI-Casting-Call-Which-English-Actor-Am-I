@@ -1,6 +1,6 @@
 # 🎬 CineFace — Actor Recognition System
 
-A face recognition system that identifies actors and public figures from photos by comparing facial embeddings against a database populated from The Movie Database (TMDB) API.
+CineFace lets you find out which English speaking actor looks most like you. It builds a database of above a thousand of popular actors using TMDB API, generates facial embeddings with InsightFace, and finds the closest match using cosine similarity search in PostgreSQL.
 
 ---
 
