@@ -1,93 +1,132 @@
-# face_recognition 
+# 🎬 CineFace — Actor Recognition System
 
+A face recognition system that identifies actors and public figures from photos by comparing facial embeddings against a database populated from The Movie Database (TMDB) API.
 
+---
 
-## Getting started
+## 🧠 How It Works
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+1. **Data ingestion** — Popular English-speaking actors are fetched from the TMDB API (up to 300 pages ≈ 1,000 actors). Their profile photos are downloaded and facial embeddings are generated using the `buffalo_l` InsightFace model.
+2. **Storage** — Embeddings are stored in a PostgreSQL database with an **HNSW index** (`pgvector`) for fast cosine similarity search.
+3. **Recognition** — Given a photo and a name, the system generates an embedding for the provided face and queries the database for the closest match, returning the actor's name and a similarity score.
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/face_recognition6381941/face_recognition.git
-git branch -M main
-git push -uf origin main
+Your Photo → InsightFace (buffalo_l) → Embedding → pgvector cosine search → Closest Actor Match
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://gitlab.com/face_recognition6381941/face_recognition/-/settings/integrations)
+## 📁 Project Structure
 
-## Collaborate with your team
+```
+.
+├── API_connector.py    # TMDB scraper — populates the database with actor embeddings
+├── db_connector.py     # PostgreSQL interface (add, fetch, search embeddings)
+├── embeddings.py       # Person class — photo fetching & embedding generation
+├── face_detecting.py   # Entry point — run recognition on a photo
+├── requirements.txt    # Python dependencies
+├── .env                # Environment variables (not committed)
+└── README.md
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+---
 
-## Test and Deploy
+## ⚙️ Requirements
 
-Use the built-in continuous integration in GitLab.
+- Python 3.12
+- PostgreSQL with [`pgvector`](https://github.com/pgvector/pgvector) extension
+- CUDA-capable GPU *(recommended for embedding generation speed)*
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Python dependencies
 
-***
+```bash
+pip install -r requirements.txt
+```
 
-# Editing this README
+> For CPU-only usage, replace `onnxruntime-gpu` with `onnxruntime`.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+---
 
-## Suggestions for a good README
+## 🗄️ Database Setup
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```sql
+-- Enable pgvector extension
+CREATE EXTENSION vector;
 
-## Name
-Choose a self-explaining name for your project.
+-- Create actors table
+CREATE TABLE actors (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100),
+    last_name   VARCHAR(100),
+    embedding   vector(512),
+    popularity  FLOAT
+);
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+-- Create HNSW index for fast cosine similarity search
+CREATE INDEX ON actors USING hnsw (embedding vector_cosine_ops);
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+---
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## 🔑 Environment Variables
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+Create a `.env` file in the project root:
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```env
+API_KEY=your_tmdb_api_key
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_NAME=your_db_name
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Get your TMDB API key at [themoviedb.org](https://www.themoviedb.org/settings/api).
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+---
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## 🚀 Usage
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### 1. Populate the database
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+python API_connector.py
+```
 
-## License
-For open source projects, say how it is licensed.
+This fetches up to 300 pages of popular actors from TMDB (~1,000 entries) and stores their facial embeddings in the database (it may take a while)
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### 2. Identify a person from a photo
+
+```bash
+python face_detecting.py "FirstName LastName" path/to/photo.jpg
+```
+
+**With a popularity threshold:**
+
+```bash
+python face_detecting.py "FirstName LastName" path/to/photo.jpg 5.0
+```
+
+**Example output:**
+
+```
+Found closest match: Tom Hanks with similarity 91.34%
+```
+
+> **Popularity threshold** — values range from ~3.4 to ~50. Higher values narrow the search to more famous actors. The top 5 popularity scores in the dataset are: 50.42, 35.21, 24.82, 23.56, 21.67.
+
+---
+
+## 📌 Notes
+
+- Only **English-language** actors with a profile photo are included in the database.
+- Only actors with a **popularity score above 3.4** are considered during ingestion.
+- The system currently assumes **one face per photo**. If multiple faces are detected, only the first one is used.
+- Names are split on spaces and apostrophes (e.g. *O'Brien* → name: `O`, last name: `Brien`). Consider extending `divide_into_parts()` for edge cases.
+
+---
+
+## 📄 License
+
+MIT
