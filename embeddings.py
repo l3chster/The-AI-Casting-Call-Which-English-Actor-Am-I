@@ -23,8 +23,8 @@ class Person:
     def get_photo(self, whole_link):
 
         '''
-        It's important to convert image from RGB to BGR because open cv works with BGR and if we don`t 
-        do that we will get wrong results when we`re trying to get embedding for photo
+        It's important to convert image from RGB to BGR because open cv works with BGR and if 
+        we don`t do that we will get wrong results when we`re trying to get embedding for photo
         '''        
 
         photo = requests.get(whole_link)
